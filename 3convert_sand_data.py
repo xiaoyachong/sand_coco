@@ -154,16 +154,32 @@ def process_split(image_files, masks_dir, output_dir, split_name):
         COCO format dictionary
     """
     
+    # COCO format: category IDs start at 1, not 0
+    # Standard COCO structure: info, licenses, categories, images, annotations
     coco_output = {
-        "images": [],
-        "annotations": [],
+        "info": {
+            "description": "NIST Sand Dataset",
+            "version": "1.0",
+            "year": 2025,
+            "contributor": "NIST",
+            "date_created": "2025/01/06"
+        },
+        "licenses": [
+            {
+                "id": 1,
+                "name": "Unknown",
+                "url": ""
+            }
+        ],
         "categories": [
-            {"id": 0, "name": "outside_field_of_view", "supercategory": "background"},
-            {"id": 1, "name": "air", "supercategory": "object"},
-            {"id": 2, "name": "sand", "supercategory": "object"},
-            {"id": 3, "name": "capillary_area", "supercategory": "object"},
-            {"id": 4, "name": "inclusions", "supercategory": "object"}
-        ]
+            {"id": 1, "name": "outside_field_of_view", "supercategory": "background"},
+            {"id": 2, "name": "air", "supercategory": "object"},
+            {"id": 3, "name": "sand", "supercategory": "object"},
+            {"id": 4, "name": "capillary_area", "supercategory": "object"},
+            {"id": 5, "name": "inclusions", "supercategory": "object"}
+        ],
+        "images": [],
+        "annotations": []
     }
     
     annotation_id = 1
@@ -209,15 +225,20 @@ def process_split(image_files, masks_dir, output_dir, split_name):
             print(f"      ✗ Error loading mask for {image_path.name}: {e}")
             continue
         
-        # Process each class (skip 0 = background)
+        # Process each class - now including class 0
+        # Mask values: 0, 1, 2, 3, 4
+        # Map to category IDs: 1, 2, 3, 4, 5
         unique_classes = np.unique(mask)
         
-        for class_id in unique_classes:
-            if class_id == 0:  # Skip background
-                continue
+        for mask_value in unique_classes:
+            # Map mask value to COCO category ID
+            # mask_value 0 -> category_id 1
+            # mask_value 1 -> category_id 2
+            # etc.
+            category_id = int(mask_value) + 1
             
             # Create binary mask for this class
-            binary_mask = (mask == class_id).astype(np.uint8)
+            binary_mask = (mask == mask_value).astype(np.uint8)
             
             # Find separate instances (connected components)
             num_instances, labeled_mask = cv2.connectedComponents(binary_mask)
@@ -255,7 +276,7 @@ def process_split(image_files, masks_dir, output_dir, split_name):
                 coco_output["annotations"].append({
                     "id": annotation_id,
                     "image_id": image_id,
-                    "category_id": int(class_id),
+                    "category_id": category_id,  # This is now 1-5 instead of 0-4
                     "bbox": bbox,
                     "area": area,
                     "segmentation": rle,
@@ -339,22 +360,50 @@ def create_merged_datasets(output_dir):
     
     # Merged train
     merged_train = {
-        "images": [],
-        "annotations": [],
+        "info": {
+            "description": "NIST Sand Dataset - Merged Train Set",
+            "version": "1.0",
+            "year": 2025,
+            "contributor": "NIST",
+            "date_created": "2025/01/06"
+        },
+        "licenses": [
+            {
+                "id": 1,
+                "name": "Unknown",
+                "url": ""
+            }
+        ],
         "categories": [
-            {"id": 0, "name": "outside_field_of_view", "supercategory": "background"},
-            {"id": 1, "name": "air", "supercategory": "object"},
-            {"id": 2, "name": "sand", "supercategory": "object"},
-            {"id": 3, "name": "capillary_area", "supercategory": "object"},
-            {"id": 4, "name": "inclusions", "supercategory": "object"}
-        ]
+            {"id": 1, "name": "outside_field_of_view", "supercategory": "background"},
+            {"id": 2, "name": "air", "supercategory": "object"},
+            {"id": 3, "name": "sand", "supercategory": "object"},
+            {"id": 4, "name": "capillary_area", "supercategory": "object"},
+            {"id": 5, "name": "inclusions", "supercategory": "object"}
+        ],
+        "images": [],
+        "annotations": []
     }
     
     # Merged test
     merged_test = {
+        "info": {
+            "description": "NIST Sand Dataset - Merged Test Set",
+            "version": "1.0",
+            "year": 2025,
+            "contributor": "NIST",
+            "date_created": "2025/01/06"
+        },
+        "licenses": [
+            {
+                "id": 1,
+                "name": "Unknown",
+                "url": ""
+            }
+        ],
+        "categories": merged_train["categories"].copy(),
         "images": [],
-        "annotations": [],
-        "categories": merged_train["categories"].copy()
+        "annotations": []
     }
     
     image_id_offset = 0
